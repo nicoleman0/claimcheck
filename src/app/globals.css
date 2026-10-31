@@ -1,0 +1,159 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-plex-sans);
+  --font-mono: var(--font-jetbrains-mono);
+  --font-heading: var(--font-plex-sans);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-panel: var(--panel);
+  --color-strong: var(--strong);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* Console theme: navy and white, one blue accent; orange (warning) is reserved for problems. */
+:root {
+  --radius: 0rem;
+  --background: #ffffff;
+  --foreground: #0b1b3f;
+  --card: #ffffff;
+  --card-foreground: #0b1b3f;
+  --popover: #ffffff;
+  --popover-foreground: #0b1b3f;
+  --panel: #f2f6ff;
+  --strong: #0b1b3f;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --secondary: #f3f6fc;
+  --secondary-foreground: #0b1b3f;
+  --muted: #f5f8ff;
+  --muted-foreground: #4a5878;
+  --accent: #eaf0ff;
+  --accent-foreground: #0b1b3f;
+  --destructive: #c2410c;
+  --warning: #c2410c;
+  --success: #1d4ed8;
+  --info: #1d4ed8;
+  --border: #e3e8f3;
+  --input: #c9d3e8;
+  --ring: #2563eb;
+  --chart-1: #2563eb;
+  --chart-2: #0b1b3f;
+  --chart-3: #7fb2ff;
+  --chart-4: #4a5878;
+  --chart-5: #c9d3e8;
+  --sidebar: #fafbfe;
+  --sidebar-foreground: #4a5878;
+  --sidebar-primary: #2563eb;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #eaf0ff;
+  --sidebar-accent-foreground: #0b1b3f;
+  --sidebar-border: #e3e8f3;
+  --sidebar-ring: #2563eb;
+}
+
+.dark {
+  --background: #081226;
+  --foreground: #eaf1ff;
+  --card: #081226;
+  --card-foreground: #eaf1ff;
+  --popover: #0c1a33;
+  --popover-foreground: #eaf1ff;
+  --panel: #0e1e3e;
+  --strong: #ffffff;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --secondary: #0f1f3d;
+  --secondary-foreground: #dce7ff;
+  --muted: #0c1a33;
+  --muted-foreground: #8ea3cc;
+  --accent: #12254a;
+  --accent-foreground: #ffffff;
+  --destructive: #ffb86b;
+  --warning: #ffb86b;
+  --success: #7fb2ff;
+  --info: #7fb2ff;
+  --border: #16284a;
+  --input: #2c4472;
+  --ring: #3b82f6;
+  --chart-1: #3b82f6;
+  --chart-2: #ffffff;
+  --chart-3: #7fb2ff;
+  --chart-4: #8ea3cc;
+  --chart-5: #2c4472;
+  --sidebar: #081226;
+  --sidebar-foreground: #8ea3cc;
+  --sidebar-primary: #3b82f6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #12254a;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #16284a;
+  --sidebar-ring: #3b82f6;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  button:not(:disabled), [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  html {
+    @apply font-sans;
+  }
+  /* Controls, labels and data read as terminal text. */
+  [data-slot="button"], [data-slot="badge"], [data-slot="table-head"], [data-slot="tabs-trigger"], [data-slot="label"], [data-slot="kbd"] {
+    @apply font-mono;
+  }
+  [data-slot="table-head"] {
+    @apply text-[11px] font-medium tracking-[0.08em] text-muted-foreground uppercase;
+  }
+  [data-slot="table-header"] [data-slot="table-row"] {
+    @apply bg-muted;
+  }
+}
