@@ -71,7 +71,6 @@ export function FindingsList({ assessmentId, rows, pages, checks, query, path }:
               <TableHead>Evidence</TableHead>
               {sortable("verdict", "Verdict")}
               {sortable("confidence", "Confidence")}
-              {sortable("status", "Status")}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -84,11 +83,11 @@ export function FindingsList({ assessmentId, rows, pages, checks, query, path }:
                   <TableRow {...keys.rowProps(i)} aria-selected={selection.isSelected(id)} className={rowStateClass}>
                     <TableCell><Checkbox aria-label={`Select ${r.qid}`} checked={selection.isSelected(id)} onCheckedChange={() => selection.toggle(id)} /></TableCell>
                     <TableCell className="align-top font-mono text-xs text-muted-foreground">{r.qid}</TableCell>
-                    <TableCell className="max-w-72 min-w-56 align-top text-xs whitespace-normal">
+                    <TableCell className="max-w-72 min-w-44 align-top text-xs whitespace-normal">
                       <p className="mb-1 text-muted-foreground">{r.question}</p>
                       <p>{r.answer}</p>
                     </TableCell>
-                    <TableCell className="max-w-80 min-w-56 align-top text-xs whitespace-normal">
+                    <TableCell className="max-w-80 min-w-48 align-top text-xs whitespace-normal">
                       <p className="mb-1 font-mono text-[11px] text-muted-foreground">
                         {r.source === "report" ? `report p${r.page}` : r.source === "none" || !r.source ? "no evidence" : `check: ${r.source}`}
                       </p>
@@ -102,13 +101,13 @@ export function FindingsList({ assessmentId, rows, pages, checks, query, path }:
                     <TableCell className="align-top">
                       {r.verdict ? <StatusBadge tone={verdictTone[r.verdict]}>{label(r.verdict)}</StatusBadge> : "-"}
                       {r.confidence != null && r.confidence < NEEDS_REVIEW_BELOW && <p className="mt-1 font-mono text-[11px] text-warning">needs review</p>}
+                      {r.status !== "open" && <p className="mt-1"><StatusBadge tone={statusTone[r.status]}>{r.status}</StatusBadge></p>}
                     </TableCell>
                     <TableCell className="align-top">{r.confidence != null ? <ConfidenceMeter value={r.confidence} /> : "-"}</TableCell>
-                    <TableCell className="align-top"><StatusBadge tone={statusTone[r.status]}>{r.status}</StatusBadge></TableCell>
                   </TableRow>
                   {open === r.id && pageText && (
                     <TableRow>
-                      <TableCell colSpan={7} className="bg-panel text-xs whitespace-pre-wrap">
+                      <TableCell colSpan={6} className="bg-panel text-xs whitespace-pre-wrap">
                         <p className="mb-1 font-mono text-[11px] text-muted-foreground">report page {r.page}</p>
                         {pageText}
                       </TableCell>

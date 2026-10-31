@@ -55,7 +55,7 @@ async function Assessment({ params, searchParams }: { params: Promise<{ id: stri
         description={`${vendor.domain} · ${a.questionnaireName} · ${a.reportName} · ${a.pages.length} report pages · started ${a.createdAt.slice(0, 16).replace("T", " ")} UTC`}
         actions={<StatusBadge tone={statusTone[vendor.status] ?? "neutral"}>{label(vendor.status)}</StatusBadge>}
       />
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
+      <div className="grid grid-cols-1 gap-4 2xl:grid-cols-[minmax(0,1fr)_minmax(0,24rem)]">
         <div className="flex min-w-0 flex-col gap-4">
           <Panel label={reviewed ? `Findings · ${summary}` : "Findings"} emphasis>
             <ReviewRunner assessmentId={id} reviewed={reviewed} error={a.reviewError} model={a.reviewModel} />
@@ -72,7 +72,7 @@ async function Assessment({ params, searchParams }: { params: Promise<{ id: stri
             )}
           </Panel>
         </div>
-        <div className="flex min-w-0 flex-col gap-4">
+        <div className="grid min-w-0 grid-cols-1 content-start gap-4 md:grid-cols-2 2xl:grid-cols-1">
           <Panel label="Live checks">
             {checks.length === 0 ? (
               <EmptyState title="No checks recorded" description="Checks run when the assessment is created." />
