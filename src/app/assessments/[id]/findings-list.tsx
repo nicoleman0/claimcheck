@@ -81,7 +81,7 @@ export function FindingsList({ assessmentId, rows, pages, checks, query, path }:
               return (
                 <Fragment key={r.id}>
                   <TableRow {...keys.rowProps(i)} aria-selected={selection.isSelected(id)} className={rowStateClass}>
-                    <TableCell><Checkbox aria-label={`Select ${r.qid}`} checked={selection.isSelected(id)} onCheckedChange={() => selection.toggle(id)} /></TableCell>
+                    <TableCell className="align-top"><Checkbox aria-label={`Select ${r.qid}`} checked={selection.isSelected(id)} onCheckedChange={() => selection.toggle(id)} /></TableCell>
                     <TableCell className="align-top font-mono text-xs text-muted-foreground">{r.qid}</TableCell>
                     <TableCell className="max-w-72 min-w-44 align-top text-xs whitespace-normal">
                       <p className="mb-1 text-muted-foreground">{r.question}</p>
