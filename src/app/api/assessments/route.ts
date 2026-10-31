@@ -36,10 +36,10 @@ export async function POST(req: Request) {
   if (!(questionnaire instanceof File)) return bad("questionnaire CSV file is required")
   if (!(report instanceof File)) return bad("report PDF file is required")
 
-  const over = [questionnaire.size, report.size].filter((n) => n > MAX_BYTES).length
-  if (over) {
-    const sizes = [questionnaire, report].filter((f) => f.size > MAX_BYTES).map((f) => Math.ceil(f.size / (1024 * 1024)))
-    return bad(`files are too large (${sizes.join(", ")} MB); the limit is 4 MB per file`)
+  const oversized = [questionnaire, report].filter((f) => f.size > MAX_BYTES)
+  if (oversized.length) {
+    const sizes = oversized.map((f) => `${f === questionnaire ? "questionnaire" : "report"} ${(f.size / (1024 * 1024)).toFixed(1)} MB`)
+    return bad(`files are too large: ${sizes.join(", ")}; the limit is 4 MB per file`)
   }
 
   // Validate both files before touching the database, so an upload that fails creates nothing.
