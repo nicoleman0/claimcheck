@@ -17,8 +17,13 @@ async function noHorizontalScroll(page: Page) {
 }
 
 test("failure path: a non-CSV questionnaire shows an error and creates nothing", async ({ page }) => {
-  await page.goto("/audit");
-  const before = await page.locator("tbody tr").count();
+  const auditRows = async () => {
+    await page.goto("/audit");
+    await expect(page.locator("tbody tr").first()).toBeVisible();
+    await page.waitForLoadState("networkidle");
+    return page.locator("tbody tr").count();
+  };
+  const before = await auditRows();
   await page.goto("/assessments/new");
   await page.getByLabel("Supplier domain").fill("badupload.example");
   await page.getByLabel("Questionnaire (CSV)").setInputFiles({ name: "q.csv", mimeType: "text/csv", buffer: Buffer.from("this is not,a questionnaire\n") });
@@ -26,8 +31,7 @@ test("failure path: a non-CSV questionnaire shows an error and creates nothing",
   await page.getByRole("button", { name: /start assessment/ }).click();
   await expect(page.getByText("Could not start the assessment")).toBeVisible();
   await expect(page).toHaveURL(/\/assessments\/new$/);
-  await page.goto("/audit");
-  expect(await page.locator("tbody tr").count()).toBe(before);
+  expect(await auditRows()).toBe(before);
 });
 
 test("central journey: register to recorded decision", async ({ page }) => {
@@ -39,7 +43,7 @@ test("central journey: register to recorded decision", async ({ page }) => {
   expect(await page.locator("tbody tr").count()).toBeGreaterThanOrEqual(5);
 
   // New assessment
-  await page.getByRole("link", { name: "new assessment" }).click();
+  await page.getByRole("button", { name: "new assessment" }).click();
   await expect(page.getByRole("heading", { name: "New assessment" })).toBeVisible();
   await page.getByLabel("Supplier domain").fill("tallyfern.co.uk");
   await page.getByLabel("Supplier name (optional)").fill("Tallyfern Ltd");
