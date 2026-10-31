@@ -272,12 +272,17 @@ const STOPWORDS = new Set(
 const words = (s: string) => s.toLowerCase().match(/[a-z0-9]+/g)?.filter((w) => w.length > 2 && !STOPWORDS.has(w)) ?? []
 
 // Lines that appear on more than half of a document's pages are report furniture, never the deciding evidence.
+// Digits are masked before counting, so "Page 7 of 25" and "Page 8 of 25" count as the same line,
+// and lines under ~6 words are never suppressed (they are skipped in scoring instead).
+const wordCount = (line: string) => line.split(/\s+/).filter(Boolean).length
+
 function repeatedLines(allPages: string[], pageText: string): string {
   if (allPages.length < 2) return pageText
   const pagesWithLine = new Map<string, number>()
   for (const page of allPages) {
     for (const line of new Set(page.split("\n").map((l) => l.trim()).filter(Boolean))) {
-      pagesWithLine.set(line, (pagesWithLine.get(line) ?? 0) + 1)
+      const pattern = line.replace(/\d+/g, "#")
+      pagesWithLine.set(pattern, (pagesWithLine.get(pattern) ?? 0) + 1)
     }
   }
   const kept = pageText
@@ -285,29 +290,95 @@ function repeatedLines(allPages: string[], pageText: string): string {
     .filter((line) => {
       const trimmed = line.trim()
       if (!trimmed) return true
-      return (pagesWithLine.get(trimmed) ?? 0) <= allPages.length / 2
+      return (pagesWithLine.get(trimmed.replace(/\d+/g, "#")) ?? 0) <= allPages.length / 2
     })
     .join("\n")
   return kept || pageText
 }
 
-// The sentence in pageText with the most word overlap with the answer, ties broken by concentration.
-// Pass allPages to ignore lines repeated on more than half the document's pages.
+// The sentence in pageText with the most word overlap with the answer.
+// Each window is a run of sentences in one paragraph block, at most about 42 words long.
+// scored on distinct answer-word hits per raw-word length, with a bonus for exclusion language next
+// to an answer word ("not in scope"), which is where reports decide a claim. Blocks are rebuilt from
+// extracted lines: a line starting capitalized after a line ending with sentence punctuation starts
+// a new block, and hard-wrapped lowercase continuations stay with their paragraph. Lines repeated
+// (digits masked) on more than half of allPages are dropped first; windows under ~6 words are skipped.
+const MAX_WINDOW_WORDS = 42
+
+function blocksOf(pageText: string): string[] {
+  const blocks: string[] = []
+  let block = ""
+  let ended = true
+  for (const rawLine of pageText.split("\n")) {
+    const line = rawLine.trim()
+    if (!line) {
+      if (block) blocks.push(block)
+      block = ""
+      ended = true
+      continue
+    }
+    if (block && ended && /^[A-Z0-9]/.test(line)) {
+      blocks.push(block)
+      block = ""
+    }
+    block = block ? `${block} ${line}` : line
+    ended = /[.!?]["')]?$/.test(line)
+  }
+  if (block) blocks.push(block)
+  return blocks.length ? blocks : [pageText]
+}
+
 export function evidenceSentence(pageText: string, answer: string, allPages: string[] = []): string {
-  const flat = repeatedLines(allPages, pageText).replace(/\s+/g, " ").trim()
+  const page = repeatedLines(allPages, pageText)
   const target = new Set(words(answer))
-  if (!target.size) return flat.slice(0, 300)
+  if (!target.size) return page.replace(/\s+/g, " ").trim().slice(0, 300)
+  const EXCLUSION = new Set("not never excluded exclusion exception exceptions except without outside missing cannot unable".split(" "))
   let best = ""
-  let bestScore = -1
-  for (const sentence of flat.split(/(?<=[.!?])\s+/)) {
-    const sentenceWords = words(sentence)
-    const hitCount = sentenceWords.filter((w) => target.has(w)).length
-    if (!hitCount) continue
-    const score = hitCount / Math.sqrt(sentenceWords.length)
-    if (score > bestScore) {
-      bestScore = score
-      best = sentence
+  let bestScore = 0
+  let bestWords = Number.POSITIVE_INFINITY
+  for (const block of blocksOf(page)) {
+    const flat = block.replace(/\s+/g, " ").trim()
+    const sentences = flat.split(/(?<=[.!?])\s+/)
+    for (let i = 0; i < sentences.length; i++) {
+      let rawCount = 0
+      for (let j = i; j < sentences.length; j++) {
+        rawCount += wordCount(sentences[j]!)
+        if (j > i && rawCount > MAX_WINDOW_WORDS) break
+        // Track where each sentence starts so furniture leads can be cut off the final quote.
+        const windowRaw: string[] = []
+        const sentenceStarts: number[] = []
+        for (const sentence of sentences.slice(i, j + 1)) {
+          sentenceStarts.push(windowRaw.length)
+          windowRaw.push(...sentence.trim().split(/\s+/))
+        }
+        const window = windowRaw.join(" ")
+        if (windowRaw.length < 6) continue
+        const tokens = window.toLowerCase().match(/[a-z0-9]+/g) ?? []
+        const hits = new Set(tokens.filter((w) => target.has(w)))
+        if (!hits.size) continue
+        // Exclusion language within two words of an answer word marks the decisive sentence.
+        let adjacent = 0
+        for (let k = 0; k < tokens.length; k++) {
+          if (!EXCLUSION.has(tokens[k]!)) continue
+          const near = tokens.slice(Math.max(0, k - 2), k + 3).some((w) => target.has(w))
+          if (near) adjacent++
+        }
+        const value = (hits.size / Math.sqrt(windowRaw.length)) * (1 + 0.4 * Math.min(adjacent, 2))
+        // Equal score: prefer the shorter, more direct quote, then the earlier one.
+        if (value < bestScore || (value === bestScore && windowRaw.length >= bestWords)) continue
+        bestScore = value
+        bestWords = windowRaw.length
+        // Furniture leads like "No exceptions noted." never carry a hit; drop them from the quote.
+        let start = 0
+        while (start < sentenceStarts.length - 1) {
+          const next = sentenceStarts[start + 1]
+          const lead = windowRaw.slice(0, next!)
+          if (lead.length < 4 && lead.join(" ").match(/[.!?]$/)) start++
+          else break
+        }
+        best = windowRaw.slice(sentenceStarts[start]!).join(" ")
+      }
     }
   }
-  return best || flat.slice(0, 300)
+  return best || page.replace(/\s+/g, " ").trim().slice(0, 300)
 }
