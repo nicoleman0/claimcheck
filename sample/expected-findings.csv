@@ -1,0 +1,31 @@
+id,verdict,source,locator
+Q01,agrees,soc2,p7
+Q02,agrees,soc2,p7
+Q03,contradicts,soc2,p3 p7 (HR Records excluded from scope)
+Q04,agrees,soc2,p8
+Q05,agrees|contradicts,soc2,p15 (report says "only subservice organisation for the in-scope services"; HR Records is out of scope, so contradicts is defensible)
+Q06,no_evidence,,
+Q07,no_evidence,,
+Q08,contradicts,soc2,p19 (CC6.1 exception: MFA not enforced on 3 of 25 admin accounts)
+Q09,agrees,soc2,p11 p19
+Q10,contradicts,soc2,p20 (CC6.2 exception: Q2 review not performed)
+Q11,agrees,soc2,p20
+Q12,agrees,soc2,p8 p19
+Q13,agrees,tls,TLS 1.3 on tallyfern.co.uk; soc2 p21
+Q14,agrees,headers,strict-transport-security present
+Q15,contradicts,headers,no content-security-policy header
+Q16,contradicts,dns,_dmarc TXT p=none
+Q17,contradicts,dns,SPF ends ~all
+Q18,contradicts,security.txt,Expires 2025-12-31 (in the past)
+Q19,agrees,soc2,p18
+Q20,contradicts,soc2,p22 (CC7.1: scans run monthly)
+Q21,agrees,soc2,p22
+Q22,agrees,soc2,p22
+Q23,no_evidence,,
+Q24,agrees,soc2,p13 p23
+Q25,agrees,soc2,p23
+Q26,agrees|contradicts,soc2,p12 p23 (emergency changes are reviewed after release; either verdict is defensible)
+Q27,agrees,soc2,p17
+Q28,agrees,soc2,p17
+Q29,agrees,soc2,p23
+Q30,no_evidence,,
