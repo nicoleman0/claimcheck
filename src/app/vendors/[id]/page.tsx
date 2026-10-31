@@ -29,7 +29,7 @@ async function Vendor({ params }: { params: Promise<{ id: string }> }) {
   if (!Number.isInteger(id)) notFound()
   const v = await getVendor(id)
   if (!v) notFound()
-  const [assessments, events] = await Promise.all([listVendorAssessments(id), listEvents({ vendorId: id, limit: 100 })])
+  const [assessments, events] = await Promise.all([listVendorAssessments(id), listEvents({ vendorId: id, limit: 100 }).then((r) => r.rows)])
   return (
     <>
       <PageHeader

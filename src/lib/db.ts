@@ -235,11 +235,15 @@ export async function approveDraft(assessmentId: number, text: string): Promise<
 
 // ---------- events ----------
 
-export async function listEvents(opts: { vendorId?: number; limit?: number } = {}): Promise<(Event & { vendorName: string })[]> {
-  const rows = await db()`select e.*, v.name as vendor_name from events e join vendors v on v.id = e.vendor_id
-    where (${opts.vendorId ?? null}::int is null or e.vendor_id = ${opts.vendorId ?? null}) order by e.at desc, e.id desc limit ${opts.limit ?? 200}`
-  return rows.map((r) => ({
-    id: r.id as number, vendorId: r.vendor_id as number, assessmentId: (r.assessment_id as number) ?? null, at: iso(r.at)!,
-    actor: r.actor as string, action: r.action as string, detail: r.detail as string, vendorName: r.vendor_name as string,
-  }))
+export async function listEvents(opts: { vendorId?: number; limit?: number; offset?: number } = {}): Promise<{ rows: (Event & { vendorName: string })[]; total: number }> {
+  const vendorId = opts.vendorId ?? null
+  const rows = await db()`select e.*, v.name as vendor_name, count(*) over() as total from events e join vendors v on v.id = e.vendor_id
+    where (${vendorId}::int is null or e.vendor_id = ${vendorId}) order by e.at desc, e.id desc limit ${opts.limit ?? 50} offset ${opts.offset ?? 0}`
+  return {
+    rows: rows.map((r) => ({
+      id: r.id as number, vendorId: r.vendor_id as number, assessmentId: (r.assessment_id as number) ?? null, at: iso(r.at)!,
+      actor: r.actor as string, action: r.action as string, detail: r.detail as string, vendorName: r.vendor_name as string,
+    })),
+    total: rows.length ? Number(rows[0].total) : 0,
+  }
 }
