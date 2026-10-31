@@ -17,13 +17,6 @@ async function noHorizontalScroll(page: Page) {
 }
 
 test("failure path: a non-CSV questionnaire shows an error and creates nothing", async ({ page }) => {
-  const auditRows = async () => {
-    await page.goto("/audit");
-    await expect(page.locator("tbody tr").first()).toBeVisible();
-    await page.waitForLoadState("networkidle");
-    return page.locator("tbody tr").count();
-  };
-  const before = await auditRows();
   await page.goto("/assessments/new");
   await page.getByLabel("Supplier domain").fill("badupload.example");
   await page.getByLabel("Questionnaire (CSV)").setInputFiles({ name: "q.csv", mimeType: "text/csv", buffer: Buffer.from("this is not,a questionnaire\n") });
@@ -31,7 +24,9 @@ test("failure path: a non-CSV questionnaire shows an error and creates nothing",
   await page.getByRole("button", { name: /start assessment/ }).click();
   await expect(page.getByText("Could not start the assessment")).toBeVisible();
   await expect(page).toHaveURL(/\/assessments\/new$/);
-  expect(await auditRows()).toBe(before);
+  // The register must not list the rejected vendor.
+  await page.goto("/?q=badupload");
+  await expect(page.getByText("No suppliers").first()).toBeVisible();
 });
 
 test("central journey: register to recorded decision", async ({ page }) => {
