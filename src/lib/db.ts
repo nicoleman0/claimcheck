@@ -146,16 +146,26 @@ export const FINDING_SORTS = ["qid", "confidence", "verdict", "status"] as const
 export type FindingSort = (typeof FINDING_SORTS)[number]
 const FINDING_ORDER: Record<FindingSort, string> = { qid: "qid", confidence: "confidence", verdict: "verdict", status: "status" }
 
-export async function listFindings(assessmentId: number, q: ListQuery<FindingSort, string>): Promise<{ rows: Finding[]; total: number }> {
+export const FINDING_FILTERS = ["contradicts", "no_evidence", "agrees", "needs_review"] as const
+export type FindingFilter = (typeof FINDING_FILTERS)[number]
+
+// needs_review is any verdict below the confidence threshold; the verdict chips count all verdicts.
+export async function listFindings(assessmentId: number, q: ListQuery<FindingSort, FindingFilter>): Promise<{ rows: Finding[]; total: number; counts: Record<string, number> }> {
   const like = `%${q.q}%`
   const order = `${FINDING_ORDER[q.sort]} ${q.dir === "desc" ? "desc" : "asc"} nulls last, qid`
+  const search = `assessment_id = $1 and ($2 = '' or question ilike $3 or answer ilike $3 or qid ilike $3 or coalesce(evidence,'') ilike $3)`
+  const filter = q.filter === "needs_review" ? "confidence < 0.6 and $4::text is null" : q.filter ? "verdict = $4" : "$4::text is null"
   const rows = await db().query(
-    `select *, count(*) over() as total from findings
-     where assessment_id = $1 and ($2 = '' or question ilike $3 or answer ilike $3 or qid ilike $3 or coalesce(evidence,'') ilike $3)
-       and ($4::text is null or verdict = $4) order by ${order} limit $5 offset $6`,
-    [assessmentId, q.q, like, q.filter, q.size, q.offset],
+    `select *, count(*) over() as total from findings where ${search} and ${filter} order by ${order} limit $5 offset $6`,
+    [assessmentId, q.q, like, q.filter === "needs_review" ? null : q.filter, q.size, q.offset],
   )
-  return { rows: rows.map(toFinding), total: rows.length ? Number(rows[0].total) : 0 }
+  const [c] = await db().query(
+    `select count(*)::int as all, count(*) filter (where verdict = 'contradicts')::int as contradicts,
+       count(*) filter (where verdict = 'no_evidence')::int as no_evidence, count(*) filter (where verdict = 'agrees')::int as agrees,
+       count(*) filter (where confidence < 0.6)::int as needs_review from findings where ${search}`,
+    [assessmentId, q.q, like],
+  )
+  return { rows: rows.map(toFinding), total: rows.length ? Number(rows[0].total) : 0, counts: c as Record<string, number> }
 }
 
 export async function allFindings(assessmentId: number): Promise<Finding[]> {
