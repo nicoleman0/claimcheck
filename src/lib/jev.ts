@@ -236,7 +236,10 @@ export async function recommend(vendor: Vendor, findings: Finding[]): Promise<Re
       timeouts.jev,
     ),
   )
-  if (outcome instanceof Error) return null
+  if (outcome instanceof Error) {
+    console.error("recommend failed:", outcome.message)
+    return null
+  }
 
   const risk = outcome.answers.risk as ScoreAnswer | undefined
   const action = outcome.answers.action as ChoiceAnswer | undefined
