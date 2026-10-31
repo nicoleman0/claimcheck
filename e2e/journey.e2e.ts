@@ -78,7 +78,7 @@ test("central journey: register to recorded decision", async ({ page }) => {
   await page.getByRole("button", { name: "draft follow-up" }).click();
   const draft = page.getByRole("textbox", { name: "Follow-up email" });
   await expect(draft).not.toHaveValue("", { timeout: 60_000 });
-  await expect(page.getByText(/written by /)).toBeVisible();
+  await expect(page.getByText(/^written by deepseek|^written by z-ai|^written by template/)).toBeVisible({ timeout: 15_000 });
   await page.getByRole("button", { name: "approve", exact: true }).click();
   await expect(page.getByText(/not sent/)).toBeVisible();
 
@@ -99,8 +99,8 @@ test("central journey: register to recorded decision", async ({ page }) => {
   // Audit log lists the actions
   await page.goto("/audit");
   await expect(page.getByRole("heading", { name: "Audit log" })).toBeVisible();
-  const log = page.locator("tbody");
-  await expect(log).toContainText("tallyfern.co.uk".slice(0, 0) + "Tallyfern");
+  const log = page.locator("tbody").first();
+  await expect(log).toContainText("Tallyfern");
   expect(await log.locator("tr").count()).toBeGreaterThanOrEqual(4);
 
   // Screenshots at both widths and themes, with the no-horizontal-scroll check
