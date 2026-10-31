@@ -1,6 +1,6 @@
 import { endpoints, models, openrouterKey, timeouts } from "@/lib/models"
-import type { Answer, CheckResult, Finding, Recommendation, Review, ReviewItem, Vendor } from "@/lib/types"
-import { CHECK_KINDS, VERDICTS } from "@/lib/types"
+import type { Action, Answer, CheckResult, Finding, Recommendation, Review, ReviewItem, Risk, Vendor } from "@/lib/types"
+import { ACTIONS, CHECK_KINDS, RISKS, VERDICTS } from "@/lib/types"
 
 // One POST to the decisions endpoint; throws on transport, status or shape problems.
 type ChoiceAnswer = { choice?: unknown; confidence?: unknown; probabilities?: Record<string, number> }
@@ -64,19 +64,37 @@ export const firstLine = (text: string, chars = 120): string =>
     .find(Boolean)
     ?.slice(0, chars) ?? ""
 
+// Plain sentences, so Jev reads the control and its outcome without knowing the kind codes.
+const CHECK_STATEMENT: Record<(typeof CHECK_KINDS)[number], string> = {
+  dmarc: "The DMARC policy found in DNS for the vendor's domain (_dmarc record).",
+  spf: "The SPF policy found in DNS for the vendor's domain.",
+  tls: "A TLS connection to the vendor's website: the protocol version negotiated and whether its certificate is trusted.",
+  hsts: "The strict-transport-security response header on the vendor's homepage.",
+  csp: "The content-security-policy response header on the vendor's homepage.",
+  security_txt: "The security policy at the vendor's /.well-known/security.txt, including whether its Expires date has passed.",
+  hibp: "The breach history of the vendor's domain recorded by Have I Been Pwned.",
+  kev: "Known exploited vulnerabilities attributed to the vendor in the CISA KEV feed.",
+}
+
 const checkLine = (c: CheckResult) => {
-  const bits = [`ok=${c.ok === null ? "unavailable" : c.ok}`]
-  if (c.value) bits.push(`value=${JSON.stringify(c.value)}`)
-  if (c.error) bits.push(`error=${JSON.stringify(c.error)}`)
-  return `${c.kind}: ${bits.join(" ")}`
+  const verdict = c.ok === null ? "UNAVAILABLE" : c.ok ? "PASS" : "FAIL"
+  const details = [
+    c.value ? `reported value: ${JSON.stringify(c.value)}` : null,
+    c.error ? `error: ${c.error}` : null,
+  ]
+    .filter(Boolean)
+    .join(", ")
+  return `[Check ${c.kind}] ${CHECK_STATEMENT[c.kind]} Result: ${verdict}${details ? ` (${details})` : ""}. Raw: ${c.raw || "(none)"}`
 }
 
 export function reviewState(checks: CheckResult[], pages: string[]): string {
   return [
-    "Live checks that ran against the vendor's public presence during this assessment:",
+    "The vendor's questionnaire answers are judged against the evidence, in two parts.",
+    "",
+    "Part 1: live checks that just ran against the vendor's public presence.",
     ...checks.map(checkLine),
     "",
-    "Vendor questionnaire answers are judged against the vendor's SOC 2 report pages and the live checks below.",
+    "Part 2: the vendor's SOC 2 report, page by page.",
     ...pages.map((page, i) => `[Page ${i + 1}]\n${page}`),
   ].join("\n")
 }
@@ -155,9 +173,92 @@ export async function reviewAnswers(answers: Answer[], pages: string[], checks: 
   return { ok: true, model: outcome.model, findings }
 }
 
+export const RECOMMEND_PROFILE = "Payroll and pensions provider for UK/EU customers. It processes national insurance numbers, bank details and salary data. Rate it as a critical-regulation third party: a control failure or an upside-down questionnaire answer puts employee data and money at risk."
+
+function recommendState(vendor: Vendor, accepted: Finding[], unsupported: Finding[]): string {
+  const lines = [
+    `Vendor under review: ${vendor.name} (${vendor.domain}), current register status: ${vendor.status}.`,
+    RECOMMEND_PROFILE,
+    "",
+    "Accepted findings — vendor claims the evidence (SOC 2 report or live checks) shows are false or overstated:",
+  ]
+  for (const f of accepted) {
+    lines.push(
+      `- [${f.qid}] ${f.question} The vendor answered: "${f.answer}"` +
+      (f.evidence ? ` Evidence: ${f.evidence.slice(0, 400)}` : " Evidence: (arbitrated)"),
+    )
+  }
+  if (!accepted.length) lines.push("- (none)")
+  lines.push("", "Unsupported claims — the vendor gave an answer but the evidence does not address it either way:")
+  for (const f of unsupported) lines.push(`- [${f.qid}] ${f.question} The vendor answered: "${f.answer}"`)
+  if (!unsupported.length) lines.push("- (none)")
+  return lines.join("\n")
+}
+
+const RISK_OPTIONS = ["low", "medium", "high", "critical"]
+const prob = (record: unknown, key: string): number => {
+  const value = (record as Record<string, unknown> | undefined)?.[key]
+  return typeof value === "number" && Number.isFinite(value) ? value : 0
+}
+const clamp01 = (n: number) => Math.min(1, Math.max(0, n))
+
+// Residual risk from the accepted findings plus the unsupported claims; null on any failure, never a guess.
 export async function recommend(vendor: Vendor, findings: Finding[]): Promise<Recommendation | null> {
-  void vendor; void findings
-  return null
+  const accepted = findings.filter((f) => f.status === "accepted" && f.verdict !== null)
+  const unsupported = findings.filter((f) => f.verdict === "no_evidence")
+  const outcome = await safely(() =>
+    decide(
+      recommendState(vendor, accepted, unsupported),
+      {
+        risk: {
+          type: "score",
+          instructions: "The residual risk of continuing to use this vendor after the accepted findings above. The accepted findings drive the score; unsupported claims add modest uncertainty only.",
+          criteria: RISK_OPTIONS,
+        },
+        action: {
+          type: "choice",
+          instructions: "What we recommend the analyst do about this vendor, given the accepted findings.",
+          criteria: {
+            approve: "No accepted finding touches the vendor's core payroll, identity or data-handling controls; residual risk is low.",
+            "approve with conditions": "Residual risk is medium, or a small number of findings must be remediated first.",
+            reject: "Residual risk is high or critical, or the evidence shows the vendor's questionnaire answers were materially wrong.",
+          },
+        },
+        misrepresented: {
+          type: "noul",
+          instructions: "How strongly does the accepted evidence show the vendor misrepresented its controls in the questionnaire?",
+          criteria: {
+            true: "Accepted findings straightforwardly contradict questionnaire answers about the same controls.",
+            false: "The answers hold up in the evidence, or the gaps are minor process deviations rather than false statements.",
+          },
+        },
+      },
+      timeouts.jev,
+    ),
+  )
+  if (outcome instanceof Error) return null
+
+  const risk = outcome.answers.risk as ScoreAnswer | undefined
+  const action = outcome.answers.action as ChoiceAnswer | undefined
+  const misrep = outcome.answers.misrepresented as NoulAnswer | undefined
+  const riskScore = Number(risk?.score)
+  if (!Number.isFinite(riskScore)) return null
+  if (!action || typeof action.choice !== "string") return null
+
+  // Score probabilities come back keyed "0".."3"; action probabilities by option name.
+  const choice = action.choice.trim().toLowerCase()
+  if (!(ACTIONS as readonly string[]).includes(choice)) return null
+  const misrepresented = misrep && Number.isFinite(Number(misrep.noul)) ? clamp01(Number(misrep.noul)) : 0
+  const riskProbs = Object.fromEntries(RISKS.map((name, i) => [name, clamp01(prob(risk?.probabilities, String(i)))])) as Record<Risk, number>
+
+  return {
+    riskScore: Math.min(3, Math.max(0, riskScore)),
+    riskProbs,
+    action: choice as Action,
+    actionProbs: Object.fromEntries(ACTIONS.map((name) => [name, clamp01(prob(action.probabilities, name))])) as Record<Action, number>,
+    misrepresented,
+    model: outcome.model,
+  }
 }
 
 const STOPWORDS = new Set(
