@@ -75,7 +75,8 @@ test("review returns one finding per answer and maps pages to 1-based page numbe
   expect(Object.keys(sourceCriteria)).toEqual(["p1", "p2", ...CHECK_KINDS, "none"])
   expect(calls[0]!.body.state).toContain("[Page 2]")
   expect(calls[0]!.body.state).toContain("[Check csp]")
-  expect(calls[0]!.body.state).toContain("Part 2: the vendor's SOC 2 report, page by page.")
+  expect(calls[0]!.body.state).toContain("Evidence part 2: the vendor's SOC 2 report, page by page.")
+  expect(calls[0]!.body.state.indexOf("Evidence part 3:")).toBeGreaterThan(calls[0]!.body.state.indexOf("Evidence part 2:"))
 })
 
 test("missing Jev answers fail the review with a usable error", async () => {

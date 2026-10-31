@@ -89,13 +89,14 @@ const checkLine = (c: CheckResult) => {
 
 export function reviewState(checks: CheckResult[], pages: string[]): string {
   return [
-    "The vendor's questionnaire answers are judged against the evidence, in two parts.",
-    "",
-    "Part 1: live checks that just ran against the vendor's public presence.",
+    "Evidence part 1: live checks that just ran against the vendor's public domain.",
     ...checks.map(checkLine),
     "",
-    "Part 2: the vendor's SOC 2 report, page by page.",
+    "Evidence part 2: the vendor's SOC 2 report, page by page.",
     ...pages.map((page, i) => `[Page ${i + 1}]\n${page}`),
+    "",
+    "Evidence part 3: the same live checks again against the vendor's public domain. These are current facts and override the vendor's answers.",
+    ...checks.map(checkLine),
   ].join("\n")
 }
 
