@@ -49,3 +49,16 @@ test("missing assessments return 404 and failed writes return an error", async (
   spyOn(db, "approveDraft").mockRejectedValue(new Error("database unavailable"))
   expect((await PUT(request({ text: "Hello" }), context())).status).toBe(500)
 })
+
+test("draft creation rejects zero accepted findings before generating or saving", async () => {
+  spyOn(db, "getAssessment").mockResolvedValue(assessment)
+  spyOn(db, "getVendor").mockResolvedValue(vendor)
+  spyOn(db, "allFindings").mockResolvedValue([{ id: 2, status: "dismissed" } as Finding, { id: 3, status: "open" } as Finding])
+  const generate = spyOn(drafting, "draftFollowUp").mockResolvedValue({ text: "Unexpected", model: "template" })
+  const save = spyOn(db, "saveDraft").mockResolvedValue()
+  const response = await POST(request({}), context())
+  expect(response.status).toBe(400)
+  expect(await response.json()).toEqual({ error: "accept at least one finding first" })
+  expect(generate).not.toHaveBeenCalled()
+  expect(save).not.toHaveBeenCalled()
+})

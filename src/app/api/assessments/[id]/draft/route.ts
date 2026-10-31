@@ -18,6 +18,7 @@ export async function POST(_request: Request, context: Context) {
     const vendor = await getVendor(assessment.vendorId)
     if (!vendor) return Response.json({ error: "Vendor not found" }, { status: 404 })
     const findings = (await allFindings(id)).filter((finding) => finding.status === "accepted")
+    if (!findings.length) return Response.json({ error: "accept at least one finding first" }, { status: 400 })
     const draft = await draftFollowUp(vendor, findings)
     await saveDraft(id, draft.text, draft.model)
     return Response.json(draft)
