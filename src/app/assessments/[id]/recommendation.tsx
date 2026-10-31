@@ -38,18 +38,18 @@ export function RecommendationPanel({ assessmentId, decision, reviewed, accepted
   }, [run])
 
   useEffect(() => {
-    if (reviewed && !hasRec && !auto.current) {
+    if (reviewed && accepted > 0 && !hasRec && !auto.current) {
       auto.current = true
       void run()
     }
-  }, [reviewed, hasRec, run])
+  }, [reviewed, accepted, hasRec, run])
 
   return (
     <Panel label="Recommendation" emphasis>
       {running && <LoadingRows rows={3} />}
       {!running && error && <ErrorState title="Recommendation unavailable" message={error} onRetry={run} />}
-      {!running && !error && !hasRec && <EmptyState title={reviewed ? "No recommendation yet" : "Waiting for the review"} description="It is computed from the accepted findings." />}
-      {!running && hasRec && (
+      {!running && !error && (!hasRec || accepted === 0) && <EmptyState title={reviewed ? "No recommendation yet" : "Waiting for the review"} description="Accept findings to get a recommendation; it updates after every accept or dismiss." />}
+      {!running && hasRec && accepted > 0 && (
         <div className="flex flex-col gap-4">
           <p className="text-sm">
             Recommended: <span className="font-semibold">{decision.action}</span>

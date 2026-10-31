@@ -15,6 +15,8 @@ function clientCheck(form: FormData): string | null {
   if (!(q instanceof File) || !q.size) return "Choose a questionnaire CSV."
   if (!(r instanceof File) || !r.size) return "Choose a SOC 2 report PDF."
   if (q.size > MAX || r.size > MAX) return "Each file must be 4 MB or smaller."
+  // The platform rejects request bodies over 4.5 MB before the route runs.
+  if (q.size + r.size > 4.4 * 1024 * 1024) return "The two files together must be under 4.4 MB."
   return null
 }
 
@@ -32,7 +34,7 @@ export function NewAssessmentForm() {
     setError(null)
     try {
       const res = await fetch("/api/assessments", { method: "POST", body: form })
-      const body = await res.json().catch(() => ({ error: `Upload failed (${res.status})` }))
+      const body = await res.json().catch(() => ({ error: res.status === 413 ? "The upload is too large." : `Upload failed (${res.status})` }))
       if (!res.ok) throw new Error(body.error ?? `Upload failed (${res.status})`)
       router.push(`/assessments/${body.id}`)
     } catch (err) {
