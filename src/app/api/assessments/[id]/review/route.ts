@@ -28,7 +28,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
     let text: string | null = null
     if (f.source === "report" && f.page != null) {
       const page = assessment.pages[f.page - 1]
-      if (page) text = evidenceSentence(page, answer.answer)
+      if (page) text = evidenceSentence(page, answer.answer, assessment.pages)
     } else if (f.source !== "none") {
       text = checks.find((c) => c.kind === f.source)?.raw ?? null
     }

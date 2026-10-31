@@ -216,3 +216,18 @@ test("evidenceSentence picks the decisive sentence", () => {
   const fallback = evidenceSentence("The weather was mild. Nothing relevant there.", "Cloudflare storage quotas")
   expect(fallback.startsWith("The weather was mild.")).toBe(true)
 })
+
+test("drops lines repeated on more than half the pages when allPages is supplied", () => {
+  const decoration = "HR Records is excluded from the scope of the report."
+  const target = "Our SOC 2 Type II report covers HR Records without exceptions."
+  const pages = [
+    `${decoration}\nThe payroll processing works out of our London office. The auditor walked the floor.`,
+    `${decoration}\nThe auditor evaluated the controls quarterly.`,
+    "The auditor is independent.",
+  ]
+  // On page 1 the repeated decoration out-overlaps the real sentence; it must be suppressed.
+  expect(evidenceSentence(pages[0]!, target, pages)).not.toContain(decoration)
+
+  // Backwards compatible call without allPages can still pick the repeated line.
+  expect(evidenceSentence(pages[1]!, decoration)).toBe(decoration)
+})

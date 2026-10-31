@@ -271,9 +271,30 @@ const STOPWORDS = new Set(
 
 const words = (s: string) => s.toLowerCase().match(/[a-z0-9]+/g)?.filter((w) => w.length > 2 && !STOPWORDS.has(w)) ?? []
 
+// Lines that appear on more than half of a document's pages are report furniture, never the deciding evidence.
+function repeatedLines(allPages: string[], pageText: string): string {
+  if (allPages.length < 2) return pageText
+  const pagesWithLine = new Map<string, number>()
+  for (const page of allPages) {
+    for (const line of new Set(page.split("\n").map((l) => l.trim()).filter(Boolean))) {
+      pagesWithLine.set(line, (pagesWithLine.get(line) ?? 0) + 1)
+    }
+  }
+  const kept = pageText
+    .split("\n")
+    .filter((line) => {
+      const trimmed = line.trim()
+      if (!trimmed) return true
+      return (pagesWithLine.get(trimmed) ?? 0) <= allPages.length / 2
+    })
+    .join("\n")
+  return kept || pageText
+}
+
 // The sentence in pageText with the most word overlap with the answer, ties broken by concentration.
-export function evidenceSentence(pageText: string, answer: string): string {
-  const flat = pageText.replace(/\s+/g, " ").trim()
+// Pass allPages to ignore lines repeated on more than half the document's pages.
+export function evidenceSentence(pageText: string, answer: string, allPages: string[] = []): string {
+  const flat = repeatedLines(allPages, pageText).replace(/\s+/g, " ").trim()
   const target = new Set(words(answer))
   if (!target.size) return flat.slice(0, 300)
   let best = ""
